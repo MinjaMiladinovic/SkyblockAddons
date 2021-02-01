@@ -1,336 +1,615 @@
-package codes.biscuit.skyblockaddons.core;
+package de.robv.android.xposed;
 
-import codes.biscuit.skyblockaddons.SkyblockAddons;
-import codes.biscuit.skyblockaddons.utils.ColorCode;
-import com.google.gson.JsonObject;
-import com.ibm.icu.text.ArabicShaping;
-import com.ibm.icu.text.ArabicShapingException;
-import com.ibm.icu.text.Bidi;
-import lombok.Getter;
-import net.minecraft.client.Minecraft;
+import android.content.res.Resources;
+import android.content.res.TypedArray;
+import android.util.Log;
 
+import com.elderdrivers.riru.edxp.bridge.BuildConfig;
+import com.elderdrivers.riru.edxp.config.EdXpConfigGlobal;
+
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.regex.Pattern;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-@Getter
-@SuppressWarnings("DeprecatedIsStillUsed")
-public enum Message {
-    LANGUAGE(MessageObject.ROOT, "language"),
+import dalvik.system.InMemoryDexClassLoader;
+import de.robv.android.xposed.XC_MethodHook.MethodHookParam;
+import de.robv.android.xposed.annotation.ApiSensitive;
+import de.robv.android.xposed.annotation.Level;
+import de.robv.android.xposed.callbacks.XC_InitPackageResources;
+import de.robv.android.xposed.callbacks.XC_InitZygote;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import de.robv.android.xposed.callbacks.XCallback;
+import external.com.android.dx.DexMaker;
+import external.com.android.dx.TypeId;
 
-    SETTING_MAGMA_BOSS_WARNING(MessageObject.SETTING, "magmaBossWarning"),
-    SETTING_ITEM_DROP_CONFIRMATION(MessageObject.SETTING, "itemDropConfirmation"),
-    SETTING_WARNING_DURATION(MessageObject.SETTING, "warningDuration"),
-    SETTING_HIDE_SKELETON_HAT_BONES(MessageObject.SETTING, "hideSkeletonHatBones"),
-    SETTING_SKELETON_HAT_BONES_BAR(MessageObject.SETTING, "skeletonHatBonesBar"),
-    SETTING_HIDE_FOOD_AND_ARMOR(MessageObject.SETTING, "hideFoodAndArmor"),
-    SETTING_FULL_INVENTORY_WARNING(MessageObject.SETTING, "fullInventoryWarning"),
-    SETTING_REPEATING(MessageObject.SETTING, "repeating"),
-    SETTING_MAGMA_BOSS_TIMER(MessageObject.SETTING, "magmaBossTimer"),
-    SETTING_DISABLE_EMBER_ROD_ABILITY(MessageObject.SETTING, "disableEmberRodAbility"),
-    SETTING_EDIT_LOCATIONS(MessageObject.SETTING, "editLocations"),
-    SETTING_GUI_SCALE(MessageObject.SETTING, "guiScale"),
-    SETTING_RESET_LOCATIONS(MessageObject.SETTING, "resetLocations"),
-    SETTING_SETTINGS(MessageObject.SETTING, "settings"),
-    SETTING_ENCHANTS_AND_REFORGES(MessageObject.SETTING, "showEnchantmentsReforges"),
-    SETTING_MINION_STOP_WARNING(MessageObject.SETTING, "minionStopWarning"),
-    SETTING_HIDE_PLAYERS_NEAR_NPCS(MessageObject.SETTING, "hidePlayersNearNPCs"),
-    SETTING_BACKPACK_STYLE(MessageObject.SETTING, "backpackStyle"),
-    SETTING_SHOW_BACKPACK_PREVIEW(MessageObject.SETTING, "showBackpackPreview"),
-    SETTING_HIDE_HEALTH_BAR(MessageObject.SETTING, "hideHealthBar"),
-    SETTING_FULL_MINION(MessageObject.SETTING, "fullMinionWarning"),
-    SETTING_IGNORE_ITEM_FRAME_CLICKS(MessageObject.SETTING, "ignoreItemFrameClicks"),
-    SETTING_USE_VANILLA_TEXTURE(MessageObject.SETTING, "useVanillaTexture"),
-    SETTING_SHOW_ONLY_WHEN_HOLDING_SHIFT(MessageObject.SETTING, "showOnlyWhenHoldingShift"),
-    SETTING_MANA_BAR(MessageObject.SETTING, "manaBar"),
-    SETTING_HEALTH_BAR(MessageObject.SETTING, "healthBar"),
-    SETTING_DEFENCE_ICON(MessageObject.SETTING, "defenceIcon"),
-    SETTING_MANA_TEXT(MessageObject.SETTING, "manaText"),
-    SETTING_HEALTH_TEXT(MessageObject.SETTING, "healthText"),
-    SETTING_DEFENCE_TEXT(MessageObject.SETTING, "defenceText"),
-    SETTING_DEFENCE_PERCENTAGE(MessageObject.SETTING, "defencePercentage"),
-    SETTING_HEALTH_UPDATES(MessageObject.SETTING, "healthUpdates"),
-    @Deprecated SETTING_ANCHOR_POINT(MessageObject.SETTING, "anchorPoint"),
-    SETTING_HIDE_PLAYERS_IN_LOBBY(MessageObject.SETTING, "hidePlayersInLobby"),
-    SETTING_TEXT_STYLE(MessageObject.SETTING, "textStyle"),
-    SETTING_DARK_AUCTION_TIMER(MessageObject.SETTING, "darkAuctionTimer"),
-    SETTING_ITEM_PICKUP_LOG(MessageObject.SETTING, "itemPickupLog"),
-    SETTING_AVOID_PLACING_ENCHANTED_ITEMS(MessageObject.SETTING, "avoidPlacingEnchantedItems"),
-    SETTING_AVOID_BREAKING_STEMS(MessageObject.SETTING, "avoidBreakingStems"),
-    SETTING_STOP_BOW_CHARGE_FROM_RESETTING(MessageObject.SETTING, "stopBowChargeFromResetting"),
-    SETTING_SHOW_ITEM_ANVIL_USES(MessageObject.SETTING, "showItemAnvilUses"),
-    SETTING_PREVENT_MOVEMENT_ON_DEATH(MessageObject.SETTING, "preventMovementOnDeath"),
-    SETTING_LOCK_SLOTS(MessageObject.SETTING, "lockSlots"),
-    SETTING_LOCK_SLOT(MessageObject.SETTING, "lockSlot"),
-    SETTING_DONT_RESET_CURSOR_INVENTORY(MessageObject.SETTING, "dontResetCursorInventory"),
-    SETTING_SUMMONING_EYE_ALERT(MessageObject.SETTING, "summoningEyeAlert"),
-    SETTING_CHANGE_COLOR(MessageObject.SETTING, "changeColor"),
-    SETTING_SHOW_IN_OTHER_GAMES(MessageObject.SETTING, "showInOtherGames"),
-    SETTING_DONT_OPEN_PROFILES_WITH_BOW(MessageObject.SETTING, "dontOpenProfileWithBow"),
-    SETTING_MAKE_ENDERCHESTS_IN_END_GREEN(MessageObject.SETTING, "makeEnderchestsInEndGreen"),
-    SETTING_STOP_DROPPING_SELLING_RARE_ITEMS(MessageObject.SETTING, "stopDroppingSellingRareItems"),
-    SETTING_MAKE_BACKPACK_INVENTORIES_COLORED(MessageObject.SETTING, "makeBackpackInventoriesColored"),
-    @Deprecated SETTING_AVOID_BREAKING_BOTTOM_SUGAR_CANE(MessageObject.SETTING, "avoidBreakingBottomSugarCane"), // disallowed
-    SETTING_REPLACE_ROMAN_NUMERALS_WITH_NUMBERS(MessageObject.SETTING, "replaceRomanNumeralsWithNumbers"),
-    SETTING_CHANGE_BAR_COLOR_WITH_POTIONS(MessageObject.SETTING, "changeBarColorForPotions"),
-    SETTING_CRAFTING_PATTERNS(MessageObject.SETTING, "craftingPatterns"),
-    SETTING_FISHING_SOUND_INDICATOR(MessageObject.SETTING, "soundIndicatorForFishing"),
-    SETTING_AVOID_BLINKING_NIGHT_VISION(MessageObject.SETTING, "avoidBlinkingNightVision"),
-    SETTING_DISABLE_MINION_LOCATION_WARNING(MessageObject.SETTING, "disableMinionLocationWarning"),
-    SETTING_JUNGLE_AXE_COOLDOWN(MessageObject.SETTING, "jungleAxeCooldown"),
-    SETTING_ORGANIZE_ENCHANTMENTS(MessageObject.SETTING, "organizeLongEnchantmentLists"),
-    SETTING_SHOW_ITEM_COOLDOWNS(MessageObject.SETTING, "showItemCooldowns"),
-    SETTING_COLLECTION_DISPLAY(MessageObject.SETTING, "collectionDisplay"),
-    SETTING_SPEED_PERCENTAGE(MessageObject.SETTING, "speedPercentage"),
-    SETTING_ONLY_MINE_ORES_DEEP_CAVERNS(MessageObject.SETTING, "onlyMineOresDeepCaverns"),
-    SETTING_ENABLE_MESSAGE_WHEN_ACTION_PREVENTED(MessageObject.SETTING, "enableMessageWhenActionPrevented"),
-    SETTING_SLAYER_INDICATOR(MessageObject.SETTING, "revenantIndicator"),
-    SETTING_SPECIAL_ZEALOT_ALERT(MessageObject.SETTING, "specialZealotAlert"),
-    SETTING_ONLY_MINE_VALUABLES_NETHER(MessageObject.SETTING, "onlyMineValuablesNether"),
-    SETTING_DISABLE_MAGICAL_SOUP_MESSAGE(MessageObject.SETTING, "disableMagicalSoupMessage"),
-    SETTING_HIDE_PET_HEALTH_BAR(MessageObject.SETTING, "hidePetHealthBar"),
-    SETTING_POWER_ORB_DISPLAY(MessageObject.SETTING, "powerOrbDisplay"),
-    SETTING_POWER_ORB_DISPLAY_STYLE(MessageObject.SETTING, "powerOrbDisplayStyle"),
-    SETTING_ZEALOT_COUNTER(MessageObject.SETTING, "zealotCounter"),
-    SETTING_TICKER_CHARGES_DISPLAY(MessageObject.SETTING, "tickerChargesDisplay"),
-    SETTING_TAB_EFFECT_TIMERS(MessageObject.SETTING, "tabEffectTimers"),
-    SETTING_HIDE_NIGHT_VISION_EFFECT_TIMER(MessageObject.SETTING, "hideNightVisionEffectTimer"),
-    SETTING_NO_ARROWS_LEFT_ALERT(MessageObject.SETTING, "noArrowsLeftAlert"),
-    SETTING_SHOW_CAKE_BAG_PREVIEW(MessageObject.SETTING, "showCakeBagPreview"),
-    SETTING_SHOW_BACKPACK_PREVIEW_AH(MessageObject.SETTING, "showBackpackPreviewInAH"),
-    SETTING_ENABLE_DEV_FEATURES(MessageObject.SETTING, "enableDevFeatures"),
-    SETTING_CHROMA_SPEED(MessageObject.SETTING, "chromaSpeed"),
-    SETTING_CHROMA_MODE(MessageObject.SETTING, "chromaMode"),
-    SETTING_CHROMA_FADE_WIDTH(MessageObject.SETTING, "chromaFadeWidth"),
-    SETTING_SORT_TAB_EFFECT_TIMERS(MessageObject.SETTING, "sortTabEffectTimers"),
-    SETTING_SHOW_BROKEN_FRAGMENTS(MessageObject.SETTING, "showBrokenFragments"),
-    SETTING_SKYBLOCK_ADDONS_BUTTON_IN_PAUSE_MENU(MessageObject.SETTING, "skyblockAddonsButtonInPauseMenu"),
-    SETTING_SHOW_TOTAL_ZEALOT_COUNT(MessageObject.SETTING, "showTotalZealotCount"),
-    SETTING_SHOW_SUMMONING_EYE_COUNT(MessageObject.SETTING, "showSummoningEyeCount"),
-    SETTING_SHOW_AVERAGE_ZEALOTS_PER_EYE(MessageObject.SETTING, "showZealotsPerEye"),
-    SETTING_TURN_BOW_GREEN_WHEN_USING_TOXIC_ARROW_POISON(MessageObject.SETTING, "turnBowGreenWhenUsingToxicArrowPoison"),
-    SETTING_BIRCH_PARK_RAINMAKER_TIMER(MessageObject.SETTING, "birchParkRainmakerTimer"),
-    SETTING_COMBAT_TIMER_DISPLAY(MessageObject.SETTING, "combatTimerDisplay"),
-    SETTING_DISCORD_RP(MessageObject.SETTING, "discordRP"),
-    SETTING_ENDSTONE_PROTECTOR_DISPLAY(MessageObject.SETTING, "endstoneProtectorDisplay"),
-    SETTING_FANCY_WARP_MENU(MessageObject.SETTING, "fancyWarpMenu"),
-    SETTING_DOUBLE_WARP(MessageObject.SETTING, "doubleWarp"),
-    SETTING_ADVANCED_MODE(MessageObject.SETTING, "advancedMode"),
-    SETTING_FREEZE_BACKPACK_PREVIEW(MessageObject.SETTING, "freezeBackpackPreview"),
-    SETTING_HIDE_GREY_ENCHANTS(MessageObject.SETTING, "hideGreyEnchants"),
-    SETTING_LEGENDARY_SEA_CREATURE_WARNING(MessageObject.SETTING, "legendarySeaCreatureWarning"),
-    SETTING_ONLY_BREAK_LOGS_PARK(MessageObject.SETTING, "onlyBreakLogsPark"),
-    SETTING_BOSS_APPROACH_ALERT(MessageObject.SETTING, "bossApproachAlert"),
-    SETTING_DISABLE_TELEPORT_PAD_MESSAGES(MessageObject.SETTING, "disableTeleportPadMessages"),
-    SETTING_BAIT_LIST(MessageObject.SETTING, "baitListDisplay"),
-    SETTING_ZEALOT_COUNTER_EXPLOSIVE_BOW_SUPPORT(MessageObject.SETTING, "zealotCounterExplosiveBow"),
-    SETTING_DISABLE_ENDERMAN_TELEPORTATION_EFFECT(MessageObject.SETTING, "disableEndermanTeleportation"),
-    SETTING_CHANGE_ZEALOT_COLOR(MessageObject.SETTING, "changeZealotColor"),
-    SETTING_HIDE_SVEN_PUP_NAMETAGS(MessageObject.SETTING, "hideSvenPupNametags"),
-    SETTING_TURN_ALL_FEATURES_CHROMA(MessageObject.SETTING, "turnAllFeaturesChroma"),
+import static de.robv.android.xposed.XposedHelpers.getIntField;
+import static de.robv.android.xposed.XposedHelpers.setObjectField;
 
-    BACKPACK_STYLE_REGULAR(MessageObject.BACKPACK_STYLE, "regular"),
-    BACKPACK_STYLE_COMPACT(MessageObject.BACKPACK_STYLE, "compact"),
+/**
+ * This class contains most of Xposed's central logic, such as initialization and callbacks used by
+ * the native side. It also includes methods to add new hooks.
+ */
+@SuppressWarnings("JniMissingFunction")
+public final class XposedBridge {
+	/**
+	 * The system class loader which can be used to locate Android framework classes.
+	 * Application classes cannot be retrieved from it.
+	 *
+	 * @see ClassLoader#getSystemClassLoader
+	 */
+	public static final ClassLoader BOOTCLASSLOADER = XposedBridge.class.getClassLoader();
 
-    MESSAGE_ENCHANTS(MessageObject.MESSAGES, "enchants"),
-    MESSAGE_REFORGES(MessageObject.MESSAGES, "reforges"),
-    MESSAGE_DROP_CONFIRMATION(MessageObject.MESSAGES, "dropConfirmation"),
-    MESSAGE_MAGMA_BOSS_WARNING(MessageObject.MESSAGES, "magmaBossWarning"),
-    MESSAGE_FULL_INVENTORY(MessageObject.MESSAGES, "fullInventory"),
-    MESSAGE_LABYMOD(MessageObject.MESSAGES, "labymod"),
-    MESSAGE_MINION_CANNOT_REACH(MessageObject.MESSAGES, "minionCannotReach"),
-    MESSAGE_MINION_IS_FULL(MessageObject.MESSAGES, "minionIsFull"),
-    MESSAGE_TYPE_ENCHANTMENTS(MessageObject.MESSAGES, "typeEnchantmentsHere"),
-    MESSAGE_SEPARATE_ENCHANTMENTS(MessageObject.MESSAGES, "separateMultiple"),
-    MESSAGE_ENCHANTS_TO_MATCH(MessageObject.MESSAGES, "enchantsToMatch"),
-    MESSAGE_ENCHANTS_TO_EXCLUDE(MessageObject.MESSAGES, "enchantsToExclude"),
-    MESSAGE_CANCELLED_STEM_BREAK(MessageObject.MESSAGES, "cancelledStemBreak"),
-    MESSAGE_SLOT_LOCKED(MessageObject.MESSAGES, "slotLocked"),
-    MESSAGE_SUMMONING_EYE_FOUND(MessageObject.MESSAGES, "summoningEyeFound"),
-    MESSAGE_STOPPED_OPENING_PROFILE(MessageObject.MESSAGES, "cancelledProfileOpening"),
-    MESSAGE_CANCELLED_DROPPING(MessageObject.MESSAGES, "cancelledDropping"),
-    MESSAGE_CLICK_MORE_TIMES(MessageObject.MESSAGES, "clickMoreTimes"),
-    MESSAGE_CLICK_ONE_MORE_TIME(MessageObject.MESSAGES, "clickOneMoreTime"),
-    MESSAGE_CANCELLED_CANE_BREAK(MessageObject.MESSAGES, "cancelledCaneBreak"),
-    MESSAGE_VIEW_PATCH_NOTES(MessageObject.MESSAGES, "wantToViewPatchNotes"),
-    MESSAGE_DOWNLOAD_LINK(MessageObject.MESSAGES, "downloadLink"),
-    MESSAGE_DIRECT_DOWNLOAD(MessageObject.MESSAGES, "directDownload"),
-    MESSAGE_DOWNLOAD_AUTOMATICALLY(MessageObject.MESSAGES, "downloadAutomatically"),
-    MESSAGE_OPEN_MODS_FOLDER(MessageObject.MESSAGES, "openModFolder"),
-    MESSAGE_JOIN_DISCORD(MessageObject.MESSAGES, "joinTheDiscord"),
-    MESSAGE_FEATURE_DISABLED(MessageObject.MESSAGES, "featureDisabled"),
-    MESSAGE_ANVIL_USES(MessageObject.MESSAGES, "anvilUses"),
-    MESSAGE_CANCELLED_NON_ORES_BREAK(MessageObject.MESSAGES, "cancelledDeepCaverns"),
-    MESSAGE_SPECIAL_ZEALOT_FOUND(MessageObject.MESSAGES, "specialZealotFound"),
-    MESSAGE_BLOCK_INCOMPLETE_PATTERNS(MessageObject.MESSAGES, "blockIncompletePatterns"),
-    MESSAGE_SEARCH_FEATURES(MessageObject.MESSAGES, "searchFeatures"),
-    MESSAGE_DOWNLOADING_UPDATE(MessageObject.MESSAGES, "downloadingUpdateFile"),
-    MESSAGE_ONLY_FEW_ARROWS_LEFT(MessageObject.MESSAGES, "onlyFewArrowsLeft"),
-    MESSAGE_NO_ARROWS_LEFT(MessageObject.MESSAGES, "noArrowsLeft"),
-    MESSAGE_CHOOSE_A_COLOR(MessageObject.MESSAGES, "chooseAColor"),
-    MESSAGE_SELECTED_COLOR(MessageObject.MESSAGES, "selectedColor"),
-    MESSAGE_SET_HEX_COLOR(MessageObject.MESSAGES, "setHexColor"),
-    MESSAGE_RESCALE_FEATURES(MessageObject.MESSAGES, "rescaleFeatures"),
-    MESSAGE_RESIZE_BARS(MessageObject.MESSAGES, "resizeBars"),
-    MESSAGE_SHOW_COLOR_ICONS(MessageObject.MESSAGES, "showColorIcons"),
-    MESSAGE_ENABLE_FEATURE_SNAPPING(MessageObject.MESSAGES, "enableFeatureSnapping"),
-    MESSAGE_STAGE(MessageObject.MESSAGES, "stage"),
-    MESSAGE_SWITCHED_SLOTS(MessageObject.MESSAGES, "switchedSlots"),
-    MESSAGE_NEW_UPDATE(MessageObject.MESSAGES, "newUpdateAvailable"),
-    MESSAGE_CLICK_TO_OPEN_LINK(MessageObject.MESSAGES, "clickToOpenLink"),
-    MESSAGE_CLICK_TO_OPEN_FOLDER(MessageObject.MESSAGES, "clickToOpenFolder"),
-    MESSAGE_FIRST_STATUS(MessageObject.MESSAGES, "firstStatus"),
-    MESSAGE_SECOND_STATUS(MessageObject.MESSAGES, "secondStatus"),
-    MESSAGE_FALLBACK_STATUS(MessageObject.MESSAGES, "fallbackStatus"),
-    MESSAGE_LEGENDARY_SEA_CREATURE_WARNING(MessageObject.MESSAGES, "legendarySeaCreatureWarning"),
-    MESSAGE_CANCELLED_NON_LOGS_BREAK(MessageObject.MESSAGES, "cancelledPark"),
-    MESSAGE_BOSS_APPROACH_ALERT(MessageObject.MESSAGES, "bossApproaching"),
-    MESSAGE_ENABLE_ALL(MessageObject.MESSAGES, "enableAll"),
-    MESSAGE_DISABLE_ALL(MessageObject.MESSAGES, "disableAll"),
-    MESSAGE_ENCHANTMENT_INCLUSION_EXAMPLE(MessageObject.MESSAGES, "enchantmentInclusionExample"),
-    MESSAGE_ENCHANTMENT_EXCLUSION_EXAMPLE(MessageObject.MESSAGES, "enchantmentExclusionExample"),
-    MESSAGE_REFORGE_INCLUSION_EXAMPLE(MessageObject.MESSAGES, "reforgeInclusionExample"),
-    MESSAGE_REFORGE_EXCLUSION_EXAMPLE(MessageObject.MESSAGES, "reforgeExclusionExample"),
-    MESSAGE_ONE_EFFECT_ACTIVE(MessageObject.MESSAGES, "effectActive"),
-    MESSAGE_EFFECTS_ACTIVE(MessageObject.MESSAGES, "effectsActive"),
+	/** @hide */
+	public static final String TAG = "EdXposed-Bridge";
 
-    @Deprecated ANCHOR_POINT_TOP_LEFT(MessageObject.ANCHOR_POINT, "topLeft"),
-    @Deprecated ANCHOR_POINT_TOP_RIGHT(MessageObject.ANCHOR_POINT, "topRight"),
-    @Deprecated ANCHOR_POINT_BOTTOM_LEFT(MessageObject.ANCHOR_POINT, "bottomLeft"),
-    @Deprecated ANCHOR_POINT_BOTTOM_RIGHT(MessageObject.ANCHOR_POINT, "bottomRight"),
-    @Deprecated ANCHOR_POINT_HEALTH_BAR(MessageObject.ANCHOR_POINT, "healthBar"),
+	/** @deprecated Use {@link #getXposedVersion()} instead. */
+	@Deprecated
+	public static int XPOSED_BRIDGE_VERSION;
 
-    UPDATE_MESSAGE_MAJOR(MessageObject.UPDATE_MESSAGES, "majorAvailable"),
-    UPDATE_MESSAGE_PATCH(MessageObject.UPDATE_MESSAGES, "patchAvailable"),
-    UPDATE_MESSAGE_DOWNLOAD(MessageObject.UPDATE_MESSAGES, "downloading"),
-    UPDATE_MESSAGE_FAILED(MessageObject.UPDATE_MESSAGES, "failed"),
-    UPDATE_MESSAGE_DOWNLOAD_FINISHED(MessageObject.UPDATE_MESSAGES, "downloadFinished"),
+	/*package*/ static boolean isZygote = true; // ed: RuntimeInit.main() tool process not supported yet
 
-    TEXT_STYLE_ONE(MessageObject.TEXT_STYLE, "one"),
-    TEXT_STYLE_TWO(MessageObject.TEXT_STYLE, "two"),
+	private static int runtime = 2; // ed: only support art
+	private static final int RUNTIME_DALVIK = 1;
+	private static final int RUNTIME_ART = 2;
 
-    @Deprecated TAB_FEATURES(MessageObject.TAB, "features"), // Tabs are no longer in use.
-    @Deprecated TAB_FIXES(MessageObject.TAB, "fixes"),
-    @Deprecated TAB_GUI_FEATURES(MessageObject.TAB, "guiFeatures"),
-    TAB_GENERAL_SETTINGS(MessageObject.TAB, "generalSettings"),
+	public static boolean disableHooks = false;
 
-    POWER_ORB_DISPLAY_STYLE_DETAILED(MessageObject.POWER_ORB_STYLE, "detailed"),
-    POWER_ORB_DISPLAY_STYLE_COMPACT(MessageObject.POWER_ORB_STYLE, "compact"),
+	// This field is set "magically" on MIUI.
+	/*package*/ static long BOOT_START_TIME;
 
-    CHROMA_MODE_ALL_THE_SAME(MessageObject.CHROMA_MODE, "allTheSame"),
-    CHROME_MODE_FADE(MessageObject.CHROMA_MODE, "fade"),
+	private static final Object[] EMPTY_ARRAY = new Object[0];
 
-    DISCORD_STATUS_NONE_TITLE(MessageObject.DISCORD_STATUS, "titleNone"),
-    DISCORD_STATUS_NONE_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionNone"),
-    DISCORD_STATUS_LOCATION_TITLE(MessageObject.DISCORD_STATUS, "titleLocation"),
-    DISCORD_STATUS_LOCATION_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionLocation"),
-    DISCORD_STATUS_PURSE_TITLE(MessageObject.DISCORD_STATUS, "titlePurse"),
-    DISCORD_STATUS_PURSE_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionPurse"),
-    DISCORD_STATUS_STATS_TITLE(MessageObject.DISCORD_STATUS, "titleStats"),
-    DISCORD_STATUS_STATS_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionStats"),
-    DISCORD_STATUS_ZEALOTS_TITLE(MessageObject.DISCORD_STATUS, "titleZealots"),
-    DISCORD_STATUS_ZEALOTS_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionZealots"),
-    DISCORD_STATUS_ITEM_TITLE(MessageObject.DISCORD_STATUS, "titleItem"),
-    DISCORD_STATUS_ITEM_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionItem"),
-    DISCORD_STATUS_TIME_TITLE(MessageObject.DISCORD_STATUS, "titleTime"),
-    DISCORD_STATUS_TIME_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionTime"),
-    DISCORD_STATUS_PROFILE_TITLE(MessageObject.DISCORD_STATUS, "titleProfile"),
-    DISCORD_STATUS_PROFILE_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionProfile"),
-    DISCORD_STATUS_CUSTOM(MessageObject.DISCORD_STATUS, "titleCustom"),
-    DISCORD_STATUS_CUSTOM_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionCustom"),
-    DISCORD_STATUS_AUTO(MessageObject.DISCORD_STATUS, "titleAuto"),
-    DISCORD_STATUS_AUTO_DESCRIPTION(MessageObject.DISCORD_STATUS, "descriptionAuto"),
-    ;
+	// built-in handlers
+	public static final Map<Member, CopyOnWriteSortedSet<XC_MethodHook>> sHookedMethodCallbacks = new HashMap<>();
+	public static final CopyOnWriteSortedSet<XC_LoadPackage> sLoadedPackageCallbacks = new CopyOnWriteSortedSet<>();
+	/*package*/ static final CopyOnWriteSortedSet<XC_InitPackageResources> sInitPackageResourcesCallbacks = new CopyOnWriteSortedSet<>();
+	/*package*/ static final CopyOnWriteSortedSet<XC_InitZygote> sInitZygoteCallbacks = new CopyOnWriteSortedSet<>();
 
-    private MessageObject messageObject;
-    private String memberName;
+	private XposedBridge() {}
 
-    Message(MessageObject messageObject, String memberName) {
-        this.messageObject = messageObject;
-        this.memberName = memberName;
-    }
+	/**
+	 * Called when native methods and other things are initialized, but before preloading classes etc.
+	 * @hide
+	 */
+	@SuppressWarnings("deprecation")
+	public static void main(String[] args) {
+		// ed: moved
+	}
 
-    public String getMessage(String... variables) {
-        String text;
-        try {
-            SkyblockAddons main = SkyblockAddons.getInstance();
-            List<String> path = getMessageObject().getPath();
-            JsonObject jsonObject = main.getConfigValues().getLanguageConfig();
-            for (String part : path) {
-                if (!part.equals("")) {
-                    jsonObject = jsonObject.getAsJsonObject(part);
-                }
-            }
-            text = jsonObject.get(getMemberName()).getAsString();
-            if (text != null) {
-                if (this == Message.SETTING_BACKPACK_STYLE) {
-                    text = text.replace("%style%", main.getConfigValues().getBackpackStyle().getMessage());
-                } else if(this == Message.SETTING_POWER_ORB_DISPLAY_STYLE) {
-                    text = text.replace("%style%", main.getConfigValues().getPowerOrbDisplayStyle().getMessage());
-                } else if (this == Message.SETTING_GUI_SCALE) {
-                    text = text.replace("%scale%", variables[0]);
-                } else if (this == MESSAGE_NEW_UPDATE || this == UPDATE_MESSAGE_MAJOR || this == UPDATE_MESSAGE_PATCH) {
-                    text = text.replace("%version%", variables[0]);
-                } else if (this == Message.SETTING_TEXT_STYLE) {
-                    text = text.replace("%style%", main.getConfigValues().getTextStyle().getMessage());
-                } else if (this == Message.MESSAGE_MINION_CANNOT_REACH || this == Message.MESSAGE_TYPE_ENCHANTMENTS
-                        || this == Message.MESSAGE_ENCHANTS_TO_MATCH || this == Message.MESSAGE_ENCHANTS_TO_EXCLUDE) {
-                    text = text.replace("%type%", variables[0]);
-                } else if (this == Message.MESSAGE_CLICK_MORE_TIMES) {
-                    text = text.replace("%times%", variables[0]);
-                } else if (this == Message.UPDATE_MESSAGE_DOWNLOAD) {
-                    text = text.replace("%downloaded%", variables[0]).replace("%total%", variables[1]);
-                } else if (this == Message.UPDATE_MESSAGE_DOWNLOAD_FINISHED) {
-                    text = text.replace("%file%", variables[0]);
-                } else if (this == Message.MESSAGE_ANVIL_USES) {
-                    text = text.replace("%uses%", main.getConfigValues().getRestrictedColor(Feature.SHOW_ITEM_ANVIL_USES)+variables[0]+ ColorCode.GRAY.toString());
-                } else if (this == Message.MESSAGE_ONLY_FEW_ARROWS_LEFT) {
-                    text = text.replace("%arrows%", variables[0]);
-                } else if (this == Message.MESSAGE_STAGE) {
-                    text = text.replace("%stage%", variables[0]);
-                } else if (this == Message.MESSAGE_EFFECTS_ACTIVE) {
-                    text = text.replace("%number%", variables[0]);
-                }
-            }
-            if (text != null && (main.getConfigValues().getLanguage() == Language.HEBREW || main.getConfigValues().getLanguage() == Language.ARABIC) && !Minecraft.getMinecraft().fontRendererObj.getBidiFlag()) {
-                text = bidiReorder(text);
-            }
-        } catch (NullPointerException ex) {
-            text = memberName; // In case of fire...
+	/** @hide */
+//	protected static final class ToolEntryPoint {
+//		protected static void main(String[] args) {
+//			isZygote = false;
+//			XposedBridge.main(args);
+//		}
+//	}
+
+	public static volatile ClassLoader dummyClassLoader = null;
+
+	@ApiSensitive(Level.MIDDLE)
+	public static void initXResources() {
+        if (dummyClassLoader != null) {
+        	return;
+		}
+		try {
+			Resources res = Resources.getSystem();
+			Class resClass = res.getClass();
+			Class taClass = TypedArray.class;
+			try {
+				TypedArray ta = res.obtainTypedArray(res.getIdentifier(
+						"preloaded_drawables", "array", "android"));
+				taClass = ta.getClass();
+				ta.recycle();
+			} catch (Resources.NotFoundException nfe) {
+				XposedBridge.log(nfe);
+			}
+			XposedBridge.removeFinalFlagNative(resClass);
+			XposedBridge.removeFinalFlagNative(taClass);
+			DexMaker dexMaker = new DexMaker();
+			dexMaker.declare(TypeId.get("Lxposed/dummy/XResourcesSuperClass;"),
+					"XResourcesSuperClass.java",
+					Modifier.PUBLIC, TypeId.get(resClass));
+			dexMaker.declare(TypeId.get("Lxposed/dummy/XTypedArraySuperClass;"),
+					"XTypedArraySuperClass.java",
+					Modifier.PUBLIC, TypeId.get(taClass));
+			ClassLoader myCL = XposedBridge.class.getClassLoader();
+			dummyClassLoader = new InMemoryDexClassLoader(
+					ByteBuffer.wrap(dexMaker.generate()), myCL.getParent());
+			dummyClassLoader.loadClass("xposed.dummy.XResourcesSuperClass");
+			dummyClassLoader.loadClass("xposed.dummy.XTypedArraySuperClass");
+			setObjectField(myCL, "parent", dummyClassLoader);
+		} catch (Throwable throwable) {
+			XposedBridge.log(throwable);
+			XposedInit.disableResources = true;
+		}
+	}
+
+//	private static boolean hadInitErrors() {
+//		// ed: assuming never had errors
+//		return false;
+//	}
+//	private static native int getRuntime();
+//	/*package*/ static native boolean startsSystemServer();
+//	/*package*/ static native String getStartClassName();
+//	/*package*/ native static boolean initXResourcesNative();
+
+	/**
+	 * Returns the currently installed version of the Xposed framework.
+	 */
+	public static int getXposedVersion() {
+		return BuildConfig.API_CODE;
+	}
+
+	/**
+	 * Writes a message to the Xposed modules log.
+	 *
+	 * <p class="warning"><b>DON'T FLOOD THE LOG!!!</b> This is only meant for error logging.
+	 * If you want to write information/debug messages, use logcat.
+	 *
+	 * @param text The log message.
+	 */
+	public synchronized static void log(String text) {
+		if (EdXpConfigGlobal.getConfig().isNoModuleLogEnabled()) {
+			return;
+		}
+		Log.i(TAG, text);
+	}
+
+	/**
+	 * Logs a stack trace to the Xposed modules log.
+	 *
+	 * <p class="warning"><b>DON'T FLOOD THE LOG!!!</b> This is only meant for error logging.
+	 * If you want to write information/debug messages, use logcat.
+	 *
+	 * @param t The Throwable object for the stack trace.
+	 */
+	public synchronized static void log(Throwable t) {
+		Log.e(TAG, Log.getStackTraceString(t));
+	}
+
+	/**
+	 * Hook any method (or constructor) with the specified callback. See below for some wrappers
+	 * that make it easier to find a method/constructor in one step.
+	 *
+	 * @param hookMethod The method to be hooked.
+	 * @param callback The callback to be executed when the hooked method is called.
+	 * @return An object that can be used to remove the hook.
+	 *
+	 * @see XposedHelpers#findAndHookMethod(String, ClassLoader, String, Object...)
+	 * @see XposedHelpers#findAndHookMethod(Class, String, Object...)
+	 * @see #hookAllMethods
+	 * @see XposedHelpers#findAndHookConstructor(String, ClassLoader, Object...)
+	 * @see XposedHelpers#findAndHookConstructor(Class, Object...)
+	 * @see #hookAllConstructors
+	 */
+	public static XC_MethodHook.Unhook hookMethod(Member hookMethod, XC_MethodHook callback) {
+		if (!(hookMethod instanceof Method) && !(hookMethod instanceof Constructor<?>)) {
+			throw new IllegalArgumentException("Only methods and constructors can be hooked: " + hookMethod.toString());
+		} else if (hookMethod.getDeclaringClass().isInterface()) {
+			throw new IllegalArgumentException("Cannot hook interfaces: " + hookMethod.toString());
+		} else if (Modifier.isAbstract(hookMethod.getModifiers())) {
+			throw new IllegalArgumentException("Cannot hook abstract methods: " + hookMethod.toString());
+		}
+
+		if (callback == null) {
+			throw new IllegalArgumentException("callback should not be null!");
+		}
+
+		boolean newMethod = false;
+		CopyOnWriteSortedSet<XC_MethodHook> callbacks;
+		synchronized (sHookedMethodCallbacks) {
+			callbacks = sHookedMethodCallbacks.get(hookMethod);
+			if (callbacks == null) {
+				callbacks = new CopyOnWriteSortedSet<>();
+				sHookedMethodCallbacks.put(hookMethod, callbacks);
+				newMethod = true;
+			}
+		}
+		callbacks.add(callback);
+
+		if (newMethod) {
+			Class<?> declaringClass = hookMethod.getDeclaringClass();
+			int slot;
+			Class<?>[] parameterTypes;
+			Class<?> returnType;
+			if (runtime == RUNTIME_ART) {
+				slot = 0;
+				parameterTypes = null;
+				returnType = null;
+			} else if (hookMethod instanceof Method) {
+				slot = getIntField(hookMethod, "slot");
+				parameterTypes = ((Method) hookMethod).getParameterTypes();
+				returnType = ((Method) hookMethod).getReturnType();
+			} else {
+				slot = getIntField(hookMethod, "slot");
+				parameterTypes = ((Constructor<?>) hookMethod).getParameterTypes();
+				returnType = null;
+			}
+
+            AdditionalHookInfo additionalInfo = new AdditionalHookInfo(callbacks, parameterTypes, returnType);
+            Member reflectMethod = EdXpConfigGlobal.getHookProvider().findMethodNative(hookMethod);
+            if (reflectMethod != null) {
+				hookMethodNative(reflectMethod, declaringClass, slot, additionalInfo);
+			} else {
+				PendingHooks.recordPendingMethod(hookMethod, additionalInfo);
+			}
         }
-        return text;
+
+        return callback.new Unhook(hookMethod);
+	}
+
+	/**
+	 * Removes the callback for a hooked method/constructor.
+	 *
+	 * @deprecated Use {@link XC_MethodHook.Unhook#unhook} instead. An instance of the {@code Unhook}
+	 * class is returned when you hook the method.
+	 *
+	 * @param hookMethod The method for which the callback should be removed.
+	 * @param callback The reference to the callback as specified in {@link #hookMethod}.
+	 */
+	@Deprecated
+	public static void unhookMethod(Member hookMethod, XC_MethodHook callback) {
+		EdXpConfigGlobal.getHookProvider().unhookMethod(hookMethod);
+		CopyOnWriteSortedSet<XC_MethodHook> callbacks;
+		synchronized (sHookedMethodCallbacks) {
+			callbacks = sHookedMethodCallbacks.get(hookMethod);
+			if (callbacks == null)
+				return;
+		}
+		callbacks.remove(callback);
+	}
+
+	/**
+	 * Hooks all methods with a certain name that were declared in the specified class. Inherited
+	 * methods and constructors are not considered. For constructors, use
+	 * {@link #hookAllConstructors} instead.
+	 *
+	 * @param hookClass The class to check for declared methods.
+	 * @param methodName The name of the method(s) to hook.
+	 * @param callback The callback to be executed when the hooked methods are called.
+	 * @return A set containing one object for each found method which can be used to unhook it.
+	 */
+	@SuppressWarnings("UnusedReturnValue")
+	public static Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> hookClass, String methodName, XC_MethodHook callback) {
+		Set<XC_MethodHook.Unhook> unhooks = new HashSet<>();
+		for (Member method : hookClass.getDeclaredMethods())
+			if (method.getName().equals(methodName))
+				unhooks.add(hookMethod(method, callback));
+		return unhooks;
+	}
+
+	/**
+	 * Hook all constructors of the specified class.
+	 *
+	 * @param hookClass The class to check for constructors.
+	 * @param callback The callback to be executed when the hooked constructors are called.
+	 * @return A set containing one object for each found constructor which can be used to unhook it.
+	 */
+	@SuppressWarnings("UnusedReturnValue")
+	public static Set<XC_MethodHook.Unhook> hookAllConstructors(Class<?> hookClass, XC_MethodHook callback) {
+		Set<XC_MethodHook.Unhook> unhooks = new HashSet<>();
+		for (Member constructor : hookClass.getDeclaredConstructors())
+			unhooks.add(hookMethod(constructor, callback));
+		return unhooks;
+	}
+
+	/**
+	 * This method is called as a replacement for hooked methods.
+	 */
+	public static Object handleHookedMethod(Member method, long originalMethodId, Object additionalInfoObj,
+			Object thisObject, Object[] args) throws Throwable {
+		AdditionalHookInfo additionalInfo = (AdditionalHookInfo) additionalInfoObj;
+
+		if (disableHooks) {
+			try {
+				return invokeOriginalMethodNative(method, originalMethodId, additionalInfo.parameterTypes,
+						additionalInfo.returnType, thisObject, args);
+			} catch (InvocationTargetException e) {
+				throw e.getCause();
+			}
+		}
+
+		Object[] callbacksSnapshot = additionalInfo.callbacks.getSnapshot();
+		final int callbacksLength = callbacksSnapshot.length;
+		if (callbacksLength == 0) {
+			try {
+				return invokeOriginalMethodNative(method, originalMethodId, additionalInfo.parameterTypes,
+						additionalInfo.returnType, thisObject, args);
+			} catch (InvocationTargetException e) {
+				throw e.getCause();
+			}
+		}
+
+		MethodHookParam param = new MethodHookParam();
+		param.method = method;
+		param.thisObject = thisObject;
+		param.args = args;
+
+		// call "before method" callbacks
+		int beforeIdx = 0;
+		do {
+			try {
+				((XC_MethodHook) callbacksSnapshot[beforeIdx]).beforeHookedMethod(param);
+			} catch (Throwable t) {
+				XposedBridge.log(t);
+
+				// reset result (ignoring what the unexpectedly exiting callback did)
+				param.setResult(null);
+				param.returnEarly = false;
+				continue;
+			}
+
+			if (param.returnEarly) {
+				// skip remaining "before" callbacks and corresponding "after" callbacks
+				beforeIdx++;
+				break;
+			}
+		} while (++beforeIdx < callbacksLength);
+
+		// call original method if not requested otherwise
+		if (!param.returnEarly) {
+			try {
+				param.setResult(invokeOriginalMethodNative(method, originalMethodId,
+						additionalInfo.parameterTypes, additionalInfo.returnType, param.thisObject, param.args));
+			} catch (InvocationTargetException e) {
+				param.setThrowable(e.getCause());
+			}
+		}
+
+		// call "after method" callbacks
+		int afterIdx = beforeIdx - 1;
+		do {
+			Object lastResult =  param.getResult();
+			Throwable lastThrowable = param.getThrowable();
+
+			try {
+				((XC_MethodHook) callbacksSnapshot[afterIdx]).afterHookedMethod(param);
+			} catch (Throwable t) {
+				XposedBridge.log(t);
+
+				// reset to last result (ignoring what the unexpectedly exiting callback did)
+				if (lastThrowable == null)
+					param.setResult(lastResult);
+				else
+					param.setThrowable(lastThrowable);
+			}
+		} while (--afterIdx >= 0);
+
+		// return
+		if (param.hasThrowable())
+			throw param.getThrowable();
+		else
+			return param.getResult();
+	}
+
+	/**
+	 * Adds a callback to be executed when an app ("Android package") is loaded.
+	 *
+	 * <p class="note">You probably don't need to call this. Simply implement {@link IXposedHookLoadPackage}
+	 * in your module class and Xposed will take care of registering it as a callback.
+	 *
+	 * @param callback The callback to be executed.
+	 * @hide
+	 */
+	public static void hookLoadPackage(XC_LoadPackage callback) {
+		synchronized (sLoadedPackageCallbacks) {
+			sLoadedPackageCallbacks.add(callback);
+		}
+	}
+
+	public static void clearLoadedPackages() {
+		synchronized (sLoadedPackageCallbacks) {
+			sLoadedPackageCallbacks.clear();
+		}
+	}
+
+	/**
+	 * Adds a callback to be executed when the resources for an app are initialized.
+	 *
+	 * <p class="note">You probably don't need to call this. Simply implement {@link IXposedHookInitPackageResources}
+	 * in your module class and Xposed will take care of registering it as a callback.
+	 *
+	 * @param callback The callback to be executed.
+	 * @hide
+	 */
+	public static void hookInitPackageResources(XC_InitPackageResources callback) {
+		synchronized (sInitPackageResourcesCallbacks) {
+			sInitPackageResourcesCallbacks.add(callback);
+		}
+	}
+
+	public static void clearInitPackageResources() {
+		synchronized (sInitPackageResourcesCallbacks) {
+			sInitPackageResourcesCallbacks.clear();
+		}
+	}
+
+	public static void hookInitZygote(XC_InitZygote callback) {
+		synchronized (sInitZygoteCallbacks) {
+			sInitZygoteCallbacks.add(callback);
+		}
+	}
+
+	public static void clearInitZygotes() {
+		synchronized (sInitZygoteCallbacks) {
+			sInitZygoteCallbacks.clear();
+		}
+	}
+
+	public static void callInitZygotes() {
+		XCallback.callAll(new IXposedHookZygoteInit.StartupParam(sInitZygoteCallbacks));
+	}
+
+	public static void clearAllCallbacks() {
+		clearLoadedPackages();
+		clearInitPackageResources();
+		clearInitZygotes();
+	}
+
+	/**
+	 * Intercept every call to the specified method and call a handler function instead.
+	 * @param method The method to intercept
+	 */
+	/*package*/ synchronized static void hookMethodNative(final Member method, Class<?> declaringClass,
+                                                      int slot, final Object additionalInfoObj) {
+		EdXpConfigGlobal.getHookProvider().hookMethod(method, (AdditionalHookInfo) additionalInfoObj);
+	}
+
+    private static Object invokeOriginalMethodNative(Member method, long methodId,
+                                                     Class<?>[] parameterTypes,
+                                                     Class<?> returnType,
+                                                     Object thisObject, Object[] args)
+            throws Throwable {
+        return EdXpConfigGlobal.getHookProvider().invokeOriginalMethod(method, methodId, thisObject, args);
     }
 
-    private String bidiReorder(String text) {
-        try {
-            Bidi bidi = new Bidi((new ArabicShaping(ArabicShaping.LETTERS_SHAPE)).shape(text), Bidi.DIRECTION_DEFAULT_RIGHT_TO_LEFT);
-            bidi.setReorderingMode(Bidi.REORDER_DEFAULT);
-            return bidi.writeReordered(Bidi.DO_MIRRORING);
-        } catch (ArabicShapingException var3) {
-            return text;
-        }
-    }
+	/**
+	 * Basically the same as {@link Method#invoke}, but calls the original method
+	 * as it was before the interception by Xposed. Also, access permissions are not checked.
+	 *
+	 * <p class="caution">There are very few cases where this method is needed. A common mistake is
+	 * to replace a method and then invoke the original one based on dynamic conditions. This
+	 * creates overhead and skips further hooks by other modules. Instead, just hook (don't replace)
+	 * the method and call {@code param.setResult(null)} in {@link XC_MethodHook#beforeHookedMethod}
+	 * if the original method should be skipped.
+	 *
+	 * @param method The method to be called.
+	 * @param thisObject For non-static calls, the "this" pointer, otherwise {@code null}.
+	 * @param args Arguments for the method call as Object[] array.
+	 * @return The result returned from the invoked method.
+	 * @throws NullPointerException
+	 *             if {@code receiver == null} for a non-static method
+	 * @throws IllegalAccessException
+	 *             if this method is not accessible (see {@link AccessibleObject})
+	 * @throws IllegalArgumentException
+	 *             if the number of arguments doesn't match the number of parameters, the receiver
+	 *             is incompatible with the declaring class, or an argument could not be unboxed
+	 *             or converted by a widening conversion to the corresponding parameter type
+	 * @throws InvocationTargetException
+	 *             if an exception was thrown by the invoked method
+	 */
+	public static Object invokeOriginalMethod(Member method, Object thisObject, Object[] args)
+			throws Throwable {
+		if (args == null) {
+			args = EMPTY_ARRAY;
+		}
 
-    @Getter
-    enum MessageObject {
-        ROOT(""),
-        SETTING("settings"),
-        MESSAGES("messages"),
-        BACKPACK_STYLE("settings.backpackStyles"),
-        POWER_ORB_STYLE("settings.powerOrbStyle"),
-        TEXT_STYLE("settings.textStyles"),
-        TAB("settings.tab"),
-        UPDATE_MESSAGES("messages.update"),
-        ANCHOR_POINT("settings.anchorPoints"),
-        CHROMA_MODE("settings.chromaModes"),
-        DISCORD_STATUS("discordStatus");
+		Class<?>[] parameterTypes;
+		Class<?> returnType;
+		if (runtime == RUNTIME_ART && (method instanceof Method || method instanceof Constructor)) {
+			parameterTypes = null;
+			returnType = null;
+		} else if (method instanceof Method) {
+			parameterTypes = ((Method) method).getParameterTypes();
+			returnType = ((Method) method).getReturnType();
+		} else if (method instanceof Constructor) {
+			parameterTypes = ((Constructor<?>) method).getParameterTypes();
+			returnType = null;
+		} else {
+			throw new IllegalArgumentException("method must be of type Method or Constructor");
+		}
 
-        private List<String> path;
+		long methodId = EdXpConfigGlobal.getHookProvider().getMethodId(method);
+		return invokeOriginalMethodNative(method, methodId, parameterTypes, returnType, thisObject, args);
+	}
 
-        MessageObject(String path) {
-            this.path = new LinkedList<>(Arrays.asList(path.split(Pattern.quote("."))));
-        }
-    }
+	/*package*/ static void setObjectClass(Object obj, Class<?> clazz) {
+		if (clazz.isAssignableFrom(obj.getClass())) {
+			throw new IllegalArgumentException("Cannot transfer object from " + obj.getClass() + " to " + clazz);
+		}
+		setObjectClassNative(obj, clazz);
+	}
 
+	private static native void setObjectClassNative(Object obj, Class<?> clazz);
+	/*package*/ static native void dumpObjectNative(Object obj);
+
+	/*package*/ static Object cloneToSubclass(Object obj, Class<?> targetClazz) {
+		if (obj == null)
+			return null;
+
+		if (!obj.getClass().isAssignableFrom(targetClazz))
+			throw new ClassCastException(targetClazz + " doesn't extend " + obj.getClass());
+
+		return cloneToSubclassNative(obj, targetClazz);
+	}
+
+	private static native Object cloneToSubclassNative(Object obj, Class<?> targetClazz);
+
+	private static void removeFinalFlagNative(Class clazz) {
+		EdXpConfigGlobal.getHookProvider().removeFinalFlagNative(clazz);
+	}
+
+//	/*package*/ static native void closeFilesBeforeForkNative();
+//	/*package*/ static native void reopenFilesAfterForkNative();
+//
+//	/*package*/ static native void invalidateCallersNative(Member[] methods);
+
+	/** @hide */
+	public static final class CopyOnWriteSortedSet<E> {
+		private transient volatile Object[] elements = EMPTY_ARRAY;
+
+		@SuppressWarnings("UnusedReturnValue")
+		public synchronized boolean add(E e) {
+			int index = indexOf(e);
+			if (index >= 0)
+				return false;
+
+			Object[] newElements = new Object[elements.length + 1];
+			System.arraycopy(elements, 0, newElements, 0, elements.length);
+			newElements[elements.length] = e;
+			Arrays.sort(newElements);
+			elements = newElements;
+			return true;
+		}
+
+		@SuppressWarnings("UnusedReturnValue")
+		public synchronized boolean remove(E e) {
+			int index = indexOf(e);
+			if (index == -1)
+				return false;
+
+			Object[] newElements = new Object[elements.length - 1];
+			System.arraycopy(elements, 0, newElements, 0, index);
+			System.arraycopy(elements, index + 1, newElements, index, elements.length - index - 1);
+			elements = newElements;
+			return true;
+		}
+
+		private int indexOf(Object o) {
+			for (int i = 0; i < elements.length; i++) {
+				if (o.equals(elements[i]))
+					return i;
+			}
+			return -1;
+		}
+
+		public Object[] getSnapshot() {
+			return elements;
+		}
+
+		public synchronized void clear() {
+			elements = EMPTY_ARRAY;
+		}
+	}
+
+	public static class AdditionalHookInfo {
+		public final CopyOnWriteSortedSet<XC_MethodHook> callbacks;
+		public final Class<?>[] parameterTypes;
+		public final Class<?> returnType;
+
+		private AdditionalHookInfo(CopyOnWriteSortedSet<XC_MethodHook> callbacks, Class<?>[] parameterTypes, Class<?> returnType) {
+			this.callbacks = callbacks;
+			this.parameterTypes = parameterTypes;
+			this.returnType = returnType;
+		}
+	}
 }
